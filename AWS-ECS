@@ -1,0 +1,65 @@
+ECS Guide
+
+Repository
+
+1) Go to ECS in AWS Console
+2) Create Repository
+3) Install awscli to local machine 
+	sudo apt install awscli
+	pip install awscli --upgrade --user
+	aws --version # make sure to install latest version
+	sudo -H pip install -U pip # update pip to latest version
+4) Login to ECS Docker 
+	eval $(aws ecr get-login --no-include-email | sed 's|https://||')
+5) Build Docker Image
+	docker build -t myrepository .
+6) Tag Build Image to Push to Repository
+	docker tag myrepository:latest 266112848176.dkr.ecr.us-east-2.amazonaws.com/myrepository:latest
+7) Push Image to aws repository
+	docker push 266112848176.dkr.ecr.us-east-2.amazonaws.com/myrepository:latest
+
+
+
+Cluster --
+
+1)Go to AWS Console ECS > Clusters > Create Cluster
+2) Choose platform 
+3) Enter Cluster name, instance type and instance numbers etc configuration as needed
+4)View Cluster and It's done.
+
+
+Task --
+1)Go to AWS Console ECS > Task Definations
+2)Create new Task Defination
+3)Choose launch Type FARGATE or EC2 (EC2)
+4)Enter Task Defination name (Which later be group name for multiple tasks)
+5)Select Task Role (ecsTaskExecutionRole)
+6)Select Network Mode > Bridge -- allow different task to communicate
+7)Select Task Execution Role (Optional)
+8)Task Size (Optional)
+9)Add Container (Docker Container which uploaded earlier)
+	1)Container name --container name
+	2)image -- url for image to run in that container 266112848176.dkr.ecr.us-east-2.amazonaws.com/myrepository:latest
+	3)Memory Limits -- enter 500 default size for small tasks
+	4)Port Mapping -Host port 80 -container port -80 
+	5)Click on Add
+10)Click on Create
+
+
+
+
+
+# To Run Service in Cluster 
+1)Go to AWS Console ECS > Clusters
+2)Choose required Cluster
+3)Click Create in Services
+	1)Lauch Type EC2
+	2)Task Defination -- Select Task to Run 
+	3)Select Subversion for that task
+	4)Service Name
+	5)Service Type -- REPLICA
+	6)Number of Tasks
+4)Configure Load Balancer 
+5)Configure Auto Scalling -- Create Alarm for Scalling add/remove
+
+	

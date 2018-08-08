@@ -1,0 +1,11 @@
+version: '2'
+services:
+  app:
+    image: <image name from docker hub>
+    ports:
+      - "80:3000"
+    environment:
+      DB_USER: vivek
+      DB_NAME: testingDb
+      DB_PASSWORD: vivek123
+      DB_HOST: ddi7ec28fr1290.cm6addc5n5nz.us-west-2.rds.amazonaws.com

@@ -1,0 +1,103 @@
+#AWS Cloud Formation using yml template
+
+1) Create IAM User and get access id and key
+
+2) Go to EC2 Dashboard > Network & Security > Key Pairs -- Create Key new Key pair and download .pem file 
+
+3) Change .pem file mode to 400 as it is required when connect to ec2 instance
+	chmod 400 codedeploy.pem 
+
+4) Create cloud formation template .yml file
+	Example: -
+	Resources:
+  AppNode:
+    Type: AWS::EC2::Instance  # type of aws service you want to use
+    Properties:
+      InstanceType: t2.micro  # which instance type you want to use
+      ImageId: ami-ba602bc2  # get AMI ID from EC2 Dashboard lauch instance screen (Note: AMI Id will be different for different regions so choose regions)
+      KeyName: codedeploy  # name of .pem file from key pair to connect to instance
+      SecurityGroups:
+        - !Ref AppNodeSecurityGroup  # optional only add if you have any Security group to apply !Ref is a function to reference to other service
+      UserData: !Base64 |          # optional it contains all scripts you want to perform on ec2 instance here we have install docker on ec2 instance
+        #!/bin/bash
+        apt-get update -qq
+        apt-get install -y apt-transport-https ca-certificates
+        apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+        echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" | tee /etc/apt/sources.list.d/docker.list
+        apt-get update -qq
+        apt-get purge lxc-docker || true
+        apt-get -y install linux-image-extra-$(uname -r) linux-image-extra-virtual
+        apt-get -y install docker-engine
+        usermod -aG docker ubuntu
+        mkdir -p /etc/systemd/system/docker.service.d
+        printf "[Service]\nExecStart=\nExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2375\n" >>  /etc/systemd/system/docker.service.d/docker.conf
+        systemctl daemon-reload
+        systemctl restart docker
+  AppNodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup   # add security group to Configure Inbound IP and Ports, Redirect Ports
+    Properties:
+      GroupDescription: for the app node that allow ssh, http and docker ports
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0 
+      - IpProtocol: tcp  # this is for docker 
+        FromPort: '2375'
+        ToPort: '2375'
+        CidrIp: 0.0.0.0/0 
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance  # DB Instance 
+    Properties:
+      DBName: "testingDb"  # DB Name
+      Engine: MySQL #which service
+      MasterUsername: vivek #Username
+      MasterUserPassword: vivek123 #password
+      DBInstanceClass: db.t2.micro  #instance type
+      AllocatedStorage: '5'  #Storage
+      DBSecurityGroups:
+        - !Ref DatabaseSG  #reference to Security Group
+  DatabaseSG:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      GroupDescription: Security Group for RDS public access
+      DBSecurityGroupIngress:
+        - CIDRIP: 0.0.0.0/0
+    
+
+
+
+
+
+
+
+5) Install aws cli and configure aws cli > enter region, access key, id  and give profile name
+	Note - should run confiuration with profile mode so easy to switch different profile for different configurations
+	
+	aws configure --profile demo
+
+6) To Create Cloudformation stack use below script -- here region is optional if you don't pass it then it will take it from profile configurations
+	
+	aws cloudformation create-stack --stack-name demostack --template-body file://$PWD/stack.yml --profile demo --region us-west-2
+
+7) To Delete Stack use below script    
+
+	aws cloudformation delete-stack --stack-name demostack --profile demo
+
+8) To Connect to EC2 use 
+
+	ssh -i codedeploy.pem ubuntu@ec2-34-217-108-64.us-west-2.compute.amazonaws.comb
+
+9) Connect to EC2 Docker in local system
+	export DOCKER_HOST=tcp://ec2-public-ip:2375
+	
+10) To compose docker file and upload to ec2 instance use below scripts
+	 docker-compose -f app.yml run 
+
+11) To Run docker image to ec2 instance use below scripts
+	docker-compose -f app.yml up -d
+
